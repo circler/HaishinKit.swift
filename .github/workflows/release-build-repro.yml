@@ -38,6 +38,9 @@ jobs:
           xcodebuild -scheme HaishinKit \
             -destination "generic/platform=iOS" -configuration Release \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | tail -30
+      - name: Show crash block on failure
+        if: failure()
+        run: grep -B8 -A16 "Found a leaked" build.log || tail -80 build.log
       - name: Confirm the optimizer ran at -O
         run: |
           if grep -m1 -E ' -O( |$)' build.log > /dev/null; then
