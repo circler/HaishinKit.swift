@@ -29,7 +29,13 @@ jobs:
       - name: Release build (Swift -O)
         run: |
           set -o pipefail
-          xcodebuild -project HaishinKit.xcodeproj -scheme HaishinKit \
+          # Build the Swift PACKAGE, not the checked-in xcodeproj: the app
+          # consumes HaishinKit via SPM, and the xcodeproj expects Carthage
+          # frameworks that do not exist in a clean checkout. With the
+          # xcodeproj removed, xcodebuild auto-generates the package scheme
+          # and resolves Logboard via SPM, matching how Xcode archives it.
+          rm -rf HaishinKit.xcodeproj
+          xcodebuild -scheme HaishinKit \
             -destination "generic/platform=iOS" -configuration Release \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | tail -30
       - name: Confirm the optimizer ran at -O
@@ -55,7 +61,13 @@ jobs:
       - name: Release build should crash in CopyPropagation
         run: |
           set +e
-          xcodebuild -project HaishinKit.xcodeproj -scheme HaishinKit \
+          # Build the Swift PACKAGE, not the checked-in xcodeproj: the app
+          # consumes HaishinKit via SPM, and the xcodeproj expects Carthage
+          # frameworks that do not exist in a clean checkout. With the
+          # xcodeproj removed, xcodebuild auto-generates the package scheme
+          # and resolves Logboard via SPM, matching how Xcode archives it.
+          rm -rf HaishinKit.xcodeproj
+          xcodebuild -scheme HaishinKit \
             -destination "generic/platform=iOS" -configuration Release \
             CODE_SIGNING_ALLOWED=NO build > control.log 2>&1
           status=$?
