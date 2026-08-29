@@ -127,15 +127,14 @@ class AudioNode {
 }
 
 final class MixerNode: AudioNode {
-    private var mixerComponentDescription = AudioComponentDescription(
-        componentType: kAudioUnitType_Mixer,
-        componentSubType: kAudioUnitSubType_MultiChannelMixer,
-        componentManufacturer: kAudioUnitManufacturer_Apple,
-        componentFlags: 0,
-        componentFlagsMask: 0)
-
     init(format: AVAudioFormat) throws {
-        try super.init(description: &mixerComponentDescription)
+        var description = AudioComponentDescription(
+            componentType: kAudioUnitType_Mixer,
+            componentSubType: kAudioUnitSubType_MultiChannelMixer,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0)
+        try super.init(description: &description)
     }
 
     func update(inputCallback: inout AURenderCallbackStruct, bus: UInt8) throws {
