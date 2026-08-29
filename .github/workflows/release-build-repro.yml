@@ -1,0 +1,73 @@
+name: Release build repro
+
+# Evidence workflow for the Swift compiler crash swiftlang/swift#90988
+# ("Found a leaked owned value that was never consumed", CopyPropagation,
+# MixerNode.init at -O). Two jobs on the same Xcode 26.2 toolchain that
+# BumpsaleLiveStudio's own CI pins on macos-15:
+#
+#   patched          - builds THIS branch at Release/-O. Expected: success.
+#   control-unpatched - builds unpatched 1.9.9 (branch base-1.9.9).
+#                       Expected: the compiler crash. This is the positive
+#                       control proving the job actually exercises the bug.
+
+on:
+  push:
+    branches: ["1.9.9-archive-fix", "1.9.9-archive-fix-outputnode"]
+  workflow_dispatch:
+
+jobs:
+  patched:
+    name: "This branch at -O (expect success)"
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26.2
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+      - name: Release build (Swift -O)
+        run: |
+          set -o pipefail
+          xcodebuild -project HaishinKit.xcodeproj -scheme HaishinKit \
+            -destination "generic/platform=iOS" -configuration Release \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | tail -30
+      - name: Confirm the optimizer ran at -O
+        run: |
+          if grep -m1 -E ' -O( |$)' build.log > /dev/null; then
+            echo "-O confirmed in compile commands"
+          else
+            echo "::warning::could not confirm -O in the build log; treat the pass as weaker evidence"
+          fi
+
+  control-unpatched:
+    name: "Unpatched 1.9.9 at -O (expect compiler crash)"
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: base-1.9.9
+      - name: Select Xcode 26.2
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+      - name: Release build should crash in CopyPropagation
+        run: |
+          set +e
+          xcodebuild -project HaishinKit.xcodeproj -scheme HaishinKit \
+            -destination "generic/platform=iOS" -configuration Release \
+            CODE_SIGNING_ALLOWED=NO build > control.log 2>&1
+          status=$?
+          if [ $status -eq 0 ]; then
+            echo "::error::Control did NOT reproduce the crash on this toolchain. A pass on the patched branch is then weaker evidence."
+            exit 1
+          fi
+          if grep -m1 "leaked owned value" control.log > /dev/null; then
+            echo "Compiler crash reproduced on unpatched 1.9.9 (xcodebuild exit $status). Positive control good."
+            grep -m2 -B2 -A8 "leaked owned value" control.log | head -50
+          else
+            echo "::error::Build failed but WITHOUT the expected ownership error. Inspect the log below."
+            tail -60 control.log
+            exit 1
+          fi
