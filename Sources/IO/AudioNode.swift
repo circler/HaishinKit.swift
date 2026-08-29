@@ -208,13 +208,6 @@ enum OutputNodeError: Error {
 }
 
 final class OutputNode: AudioNode {
-    private var outputComponentDescription = AudioComponentDescription(
-        componentType: kAudioUnitType_Output,
-        componentSubType: kAudioUnitSubType_GenericOutput,
-        componentManufacturer: kAudioUnitManufacturer_Apple,
-        componentFlags: 0,
-        componentFlagsMask: 0)
-
     var format: AVAudioFormat {
         buffer.format
     }
@@ -230,7 +223,13 @@ final class OutputNode: AudioNode {
             throw OutputNodeError.unableToAllocateBuffer
         }
         self.buffer = buffer
-        try super.init(description: &outputComponentDescription)
+        var description = AudioComponentDescription(
+            componentType: kAudioUnitType_Output,
+            componentSubType: kAudioUnitSubType_GenericOutput,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0)
+        try super.init(description: &description)
     }
 
     func render(numberOfFrames: AVAudioFrameCount,
